@@ -14,5 +14,3 @@ huggingface-hub[torch]>=0.22
 pillow<=10.3.0
 gdown
 imageio[ffmpeg]
-# Open3D has a bug from 0.16.0, please use dev version
-open3d @ https://github.com/isl-org/Open3D/releases/download/main-devel/open3d-0.18.0+553ca86-cp39-cp39-manylinux_2_31_x86_64.whl

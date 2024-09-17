@@ -28,6 +28,9 @@
    conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=11.8 -c pytorch -c nvidia  # use the correct version of cuda for your system
    
    pip install -r requirements.txt
+   
+   # Open3D has a bug from 0.16.0, please use dev version
+   pip install -U -f https://www.open3d.org/docs/latest/getting_started.html open3d
    ```
 
 3. Compile cuda kernels for RoPE
