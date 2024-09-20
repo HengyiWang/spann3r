@@ -38,11 +38,11 @@ def main(args):
     os.makedirs(exp_path, exist_ok=True)
 
     datasets_all = {
-        '7scenes': SevenScenes(split='test', ROOT="/media/hengyi/Data/7scenes",
+        '7scenes': SevenScenes(split='test', ROOT="./data/7scenes",
                                 resolution=224, num_seq=1, full_video=True, kf_every=20),
-        'NRGBD': NRGBD(split='test', ROOT="/media/hengyi/Data/neural_rgbd", 
+        'NRGBD': NRGBD(split='test', ROOT="./data/neural_rgbd", 
                            resolution=224, num_seq=1, full_video=True, kf_every=40),
-        'DTU': DTU(split='test', ROOT="/home/hengyi/Downloads/mvs_training/dtu_test_mvsnet",
+        'DTU': DTU(split='test', ROOT="./data/dtu_test",
                    resolution=224, num_seq=1, full_video=True, kf_every=5),
     }
     model = Spann3R(dus3r_name='./checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth', 

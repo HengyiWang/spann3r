@@ -464,7 +464,7 @@ class Spann3R(nn.Module):
     
     def forward(self, frames, return_memory=False):
         if self.training:
-            sp_mem = SpatialMemory(self.norm_q, self.norm_k, self.norm_v, memory_dropout=self.mem_dropout, attn_thresh=0)
+            sp_mem = SpatialMemory(self.norm_q, self.norm_k, self.norm_v, mem_dropout=self.mem_dropout, attn_thresh=0)
         else:
             sp_mem = SpatialMemory(self.norm_q, self.norm_k, self.norm_v)
         
