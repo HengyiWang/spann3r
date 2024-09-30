@@ -1,9 +1,3 @@
----
-title: mini-spann3r
-app_file: app.py
-sdk: gradio
-sdk_version: 4.42.0
----
 # 3D Reconstruction with Spatial Memory
 
 ### [Paper](https://arxiv.org/abs/2408.16061) | [Project Page](https://hengyiwang.github.io/projects/spanner) | [Video](https://hengyiwang.github.io/projects/spanner/videos/spanner_intro.mp4)
@@ -70,6 +64,17 @@ sdk_version: 4.42.0
 
    For visualization `--vis`, it will give you a window to adjust the rendering view. Once you find the view to render, please click `space key` and close the window. The code will then do the rendering of the incremental reconstruction.
 
+
+## Gradio interface 🤗
+
+We also provide a Gradio <a href='https://github.com/gradio-app/gradio'><img src='https://img.shields.io/github/stars/gradio-app/gradio'></a> interface for a better experience, just run by:
+
+```bash
+# For Linux and Windows users (and macOS with Intel??)
+python app.py
+```
+
+You can specify the `--server_port`, `--share`, `--server_name` arguments to satisfy your needs!
 
 
 ## Training and Evaluation
