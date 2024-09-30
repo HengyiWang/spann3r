@@ -1,3 +1,9 @@
+---
+title: mini-spann3r
+app_file: app.py
+sdk: gradio
+sdk_version: 4.42.0
+---
 # 3D Reconstruction with Spatial Memory
 
 ### [Paper](https://arxiv.org/abs/2408.16061) | [Project Page](https://hengyiwang.github.io/projects/spanner) | [Video](https://hengyiwang.github.io/projects/spanner/videos/spanner_intro.mp4)

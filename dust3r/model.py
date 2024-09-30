@@ -7,6 +7,7 @@
 from copy import deepcopy
 import torch
 import os
+import urllib.parse
 from packaging import version
 import huggingface_hub
 
@@ -22,10 +23,16 @@ inf = float('inf')
 hf_version_number = huggingface_hub.__version__
 assert version.parse(hf_version_number) >= version.parse("0.22.0"), "Outdated huggingface_hub version, please reinstall requirements.txt"
 
-def load_model(model_path, device, landscape_only=False, verbose=True):
+
+def load_model(model_path_or_url, device='cpu', landscape_only=False, verbose=True):
     if verbose:
-        print('... loading model from', model_path)
-    ckpt = torch.load(model_path, map_location='cpu')
+        print('... loading model from', model_path_or_url)
+    is_url = urllib.parse.urlparse(model_path_or_url).scheme in ('http', 'https')
+    
+    if is_url:
+        ckpt = torch.hub.load_state_dict_from_url(model_path_or_url, map_location='cpu', progress=verbose)
+    else:
+        ckpt = torch.load(model_path_or_url, map_location='cpu')
     args = ckpt['args'].model.replace("ManyAR_PatchEmbed", "PatchEmbedDust3R")
     if 'landscape_only' not in args:
         args = args[:-1] + ', landscape_only=False)'
@@ -76,7 +83,7 @@ class AsymmetricCroCo3DStereo (
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, **kw):
-        if os.path.isfile(pretrained_model_name_or_path):
+        if os.path.isfile(pretrained_model_name_or_path) or urllib.parse.urlparse(pretrained_model_name_or_path).scheme in ('http', 'https'):
             return load_model(pretrained_model_name_or_path, device='cpu', landscape_only=kw['landscape_only'])
         else:
             return super(AsymmetricCroCo3DStereo, cls).from_pretrained(pretrained_model_name_or_path, **kw)
