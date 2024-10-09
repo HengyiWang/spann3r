@@ -15,6 +15,7 @@ from spann3r.datasets import *
 from torch.utils.data import DataLoader
 from spann3r.tools.eval_recon import accuracy, completion
 from spann3r.tools.vis import render_frames, find_render_cam, vis_pred_and_imgs
+from pose_utils import solve_cemara
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Spann3R demo', add_help=False)
@@ -99,7 +100,8 @@ def main(args):
     pts_gt_all = []
     images_all = []
     masks_all = []
-    conf_all = []
+    conf_sig_all = []
+    cameras_all = []
 
     for j, view in enumerate(ordered_batch):
         
@@ -108,35 +110,36 @@ def main(args):
 
         pts = preds[j]['pts3d' if j==0 else 'pts3d_in_other_view'].detach().cpu().numpy()[0]
         conf = preds[j]['conf'][0].cpu().data.numpy()
-
+        conf_sig = (conf - 1) / conf
         pts_gt = view['pts3d'].cpu().numpy()[0]
 
+        camera = solve_cemara(torch.tensor(pts), torch.tensor(conf_sig) > args.conf_thresh, args.device)
+        
         images_all.append((image[None, ...] + 1.0)/2.0)
         pts_all.append(pts[None, ...])
         pts_gt_all.append(pts_gt[None, ...])
         masks_all.append(mask[None, ...])
-        conf_all.append(conf[None, ...])
-    
+        conf_sig_all.append(conf_sig[None, ...])
+        cameras_all.append(camera)
+
     images_all = np.concatenate(images_all, axis=0)
     pts_all = np.concatenate(pts_all, axis=0)
     pts_gt_all = np.concatenate(pts_gt_all, axis=0)
     masks_all = np.concatenate(masks_all, axis=0)
-    conf_all = np.concatenate(conf_all, axis=0)
+    conf_sig_all = np.concatenate(conf_sig_all, axis=0)
 
     save_params = dict(
         images_all=images_all,
         pts_all=pts_all,
         pts_gt_all=pts_gt_all,
         masks_all=masks_all,
-        conf_all=conf_all
+        conf_sig_all=conf_sig_all
         )
     
     np.save(os.path.join(save_demo_path, f"{demo_name}.npy"), save_params)
 
 
     # Save point cloud
-    conf_sig_all = (conf_all-1) / conf_all
-
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(pts_all[conf_sig_all>args.conf_thresh].reshape(-1, 3))
     pcd.colors = o3d.utility.Vector3dVector(images_all[conf_sig_all>args.conf_thresh].reshape(-1, 3))
@@ -144,9 +147,7 @@ def main(args):
 
 
     if args.vis:
-        camera_parameters = find_render_cam(pcd)
-
-        render_frames(pts_all, images_all, camera_parameters, save_demo_path, mask=conf_sig_all>args.conf_thresh)
+        render_frames(pts_all, images_all, cameras_all, save_demo_path, mask=conf_sig_all>args.conf_thresh)
         vis_pred_and_imgs(pts_all, save_demo_path, images_all=images_all, conf_all=conf_sig_all)
 
 
