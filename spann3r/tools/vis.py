@@ -14,11 +14,11 @@ import numpy as np
 import imageio
 import os.path as osp
 
-def render_frames(pts_all, image_all, camera_parameters, output_dir, mask=None, save_video=True, save_camera=True):
+def render_frames(pts_all, image_all, camera_all, output_dir, mask=None, save_video=True, save_camera=True):
     t, h, w, _ = pts_all.shape
 
     vis = o3d.visualization.Visualizer()
-    vis.create_window(width=1920, height=1080)
+    vis.create_window(width=640, height=480)
 
     render_frame_path = os.path.join(output_dir, 'render_frames')
     os.makedirs(render_frame_path, exist_ok=True)
@@ -48,10 +48,12 @@ def render_frames(pts_all, image_all, camera_parameters, output_dir, mask=None, 
         vis.add_geometry(pcd)
 
         ctr = vis.get_view_control()
-        ctr.convert_from_pinhole_camera_parameters(camera_parameters)
+        camera_params = ctr.convert_to_pinhole_camera_parameters()
+        camera_params.extrinsic = camera_all[0].extrinsic
+        ctr.convert_from_pinhole_camera_parameters(camera_params, True)
 
         opt = vis.get_render_option()
-        opt.point_size = 1
+        opt.point_size = 5
         opt.background_color = np.array([0, 0, 0])
 
         vis.poll_events()
