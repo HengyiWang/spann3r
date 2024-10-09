@@ -21,10 +21,9 @@ def render_frames(pts_all, image_all, camera_all, output_dir, mask=None, save_vi
     vis.create_window(width=640, height=480)
 
     render_frame_path = os.path.join(output_dir, 'render_frames')
+    render_camera_path = os.path.join(output_dir, 'render_cameras')
     os.makedirs(render_frame_path, exist_ok=True)
-
-    if save_camera:
-        o3d.io.write_pinhole_camera_parameters(os.path.join(render_frame_path, 'camera.json'), camera_parameters)
+    os.makedirs(render_camera_path, exist_ok=True)
 
     video_path = os.path.join(output_dir, 'render_frame.mp4')
     if save_video:
@@ -51,6 +50,10 @@ def render_frames(pts_all, image_all, camera_all, output_dir, mask=None, save_vi
         camera_params = ctr.convert_to_pinhole_camera_parameters()
         camera_params.extrinsic = camera_all[0].extrinsic
         ctr.convert_from_pinhole_camera_parameters(camera_params, True)
+
+        if save_camera:
+            o3d.io.write_pinhole_camera_parameters(os.path.join(render_camera_path, f'camera_{i:03d}.json'), 
+                                                   camera_params)
 
         opt = vis.get_render_option()
         opt.point_size = 5
