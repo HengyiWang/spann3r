@@ -12,6 +12,9 @@ from spann3r.datasets import Demo
 from torch.utils.data import DataLoader
 import trimesh
 from scipy.spatial.transform import Rotation
+from transformers import AutoModelForImageSegmentation
+from torchvision import transforms
+from PIL import Image
 
 # Default values
 DEFAULT_CKPT_PATH = 'https://huggingface.co/spaces/Stable-X/StableSpann3R/resolve/main/checkpoints/spann3r.pth'
@@ -105,9 +108,42 @@ def pts3d_to_trimesh(img, pts3d, valid=None):
     return dict(vertices=vertices, face_colors=face_colors, faces=faces)
 
 model = load_model(DEFAULT_CKPT_PATH, DEFAULT_DEVICE)
+birefnet = AutoModelForImageSegmentation.from_pretrained('zhengpeng7/BiRefNet', trust_remote_code=True)
+birefnet.to(DEFAULT_DEVICE)
+birefnet.eval()
+
+def extract_object(birefnet, image):
+    # Data settings
+    image_size = (1024, 1024)
+    transform_image = transforms.Compose([
+        transforms.Resize(image_size),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
+    input_images = transform_image(image).unsqueeze(0).to(DEFAULT_DEVICE)
+
+    # Prediction
+    with torch.no_grad():
+        preds = birefnet(input_images)[-1].sigmoid().cpu()
+    pred = preds[0].squeeze()
+    pred_pil = transforms.ToPILImage()(pred)
+    mask = pred_pil.resize(image.size)
+    return mask
+
+def generate_mask(image: np.ndarray):
+    # Convert numpy array to PIL Image
+    pil_image = Image.fromarray((image * 255).astype(np.uint8))
+    
+    # Extract object and get mask
+    mask = extract_object(birefnet, pil_image)
+    
+    # Convert mask to numpy array
+    mask_np = np.array(mask) / 255.0
+    return mask_np
 
 @torch.no_grad()
-def reconstruct(video_path, conf_thresh, kf_every, as_pointcloud=False):
+def reconstruct(video_path, conf_thresh, kf_every, as_pointcloud=False, remove_background=False):
     # Extract frames from video
     demo_path = extract_frames(video_path)
     
@@ -129,36 +165,43 @@ def reconstruct(video_path, conf_thresh, kf_every, as_pointcloud=False):
     print(f'Finished reconstruction for {demo_name}, FPS: {fps:.2f}')
     
     # Process results
-    pts_all, images_all, conf_all = [], [], []
+    pts_all, images_all, conf_all, mask_all = [], [], [], []
     for j, view in enumerate(batch):
         image = view['img'].permute(0, 2, 3, 1).cpu().numpy()[0]
         pts = preds[j]['pts3d' if j==0 else 'pts3d_in_other_view'].detach().cpu().numpy()[0]
         conf = preds[j]['conf'][0].cpu().data.numpy()
         
+        if remove_background:
+            mask = generate_mask(image)
+        else:
+            mask = np.ones_like(conf)  # Change this to match conf shape
+        
         images_all.append((image[None, ...] + 1.0)/2.0)
         pts_all.append(pts[None, ...])
         conf_all.append(conf[None, ...])
+        mask_all.append(mask[None, ...])
     
     images_all = np.concatenate(images_all, axis=0)
     pts_all = np.concatenate(pts_all, axis=0) * 10
     conf_all = np.concatenate(conf_all, axis=0)
+    mask_all = np.concatenate(mask_all, axis=0)
     
     # Create point cloud or mesh
     conf_sig_all = (conf_all-1) / conf_all
-    mask = conf_sig_all > conf_thresh
+    combined_mask = (conf_sig_all > conf_thresh) & (mask_all > 0.5)
     
     scene = trimesh.Scene()
     
     if as_pointcloud:
         pcd = trimesh.PointCloud(
-            vertices=pts_all[mask].reshape(-1, 3),
-            colors=images_all[mask].reshape(-1, 3)
+            vertices=pts_all[combined_mask].reshape(-1, 3),
+            colors=images_all[combined_mask].reshape(-1, 3)
         )
         scene.add_geometry(pcd)
     else:
         meshes = []
         for i in range(len(images_all)):
-            meshes.append(pts3d_to_trimesh(images_all[i], pts_all[i], mask[i]))
+            meshes.append(pts3d_to_trimesh(images_all[i], pts_all[i], combined_mask[i]))
         mesh = trimesh.Trimesh(**cat_meshes(meshes))
         scene.add_geometry(mesh)
     
@@ -167,7 +210,10 @@ def reconstruct(video_path, conf_thresh, kf_every, as_pointcloud=False):
     scene.apply_transform(np.linalg.inv(OPENGL @ rot))
     
     # Save the scene as GLB
-    output_path = tempfile.mktemp(suffix='.glb')
+    if as_pointcloud:
+        output_path = tempfile.mktemp(suffix='.ply')  
+    else:
+        output_path = tempfile.mktemp(suffix='.obj')
     scene.export(output_path)
     
     # Clean up temporary directory
@@ -181,14 +227,15 @@ iface = gr.Interface(
         gr.Video(label="Input Video"),
         gr.Slider(0, 1, value=1e-3, label="Confidence Threshold"),
         gr.Slider(1, 30, step=1, value=5, label="Keyframe Interval"),
-        gr.Checkbox(label="As Pointcloud", value=False)
+        gr.Checkbox(label="As Pointcloud", value=False),
+        gr.Checkbox(label="Remove Background", value=False)
     ],
     outputs=[
-        gr.Model3D(label="3D Model (GLB)", display_mode="solid"),
+        gr.Model3D(label="3D Model", display_mode="solid"),
         gr.Textbox(label="Status")
     ],
-    title="3D Reconstruction with Spatial Memory",
+    title="3D Reconstruction with Spatial Memory and Background Removal",
 )
 
 if __name__ == "__main__":
-    iface.launch()
+    iface.launch(server_name="0.0.0.0",)
