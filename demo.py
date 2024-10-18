@@ -1,18 +1,23 @@
 import os
+import cv2
 import time
 import torch
 import argparse
 import numpy as np
 import open3d as o3d
 import os.path as osp
-from dust3r.losses import L21
-from spann3r.model import Spann3R
-from dust3r.inference import inference
-from dust3r.utils.geometry import geotrf
-from dust3r.image_pairs import make_pairs
-from spann3r.loss import Regr3D_t_ScaleShiftInv
-from spann3r.datasets import *
+
 from torch.utils.data import DataLoader
+
+from dust3r.losses import L21
+from dust3r.utils.geometry import inv
+from dust3r.inference import inference
+from dust3r.image_pairs import make_pairs
+from dust3r.post_process import estimate_focal_knowing_depth
+
+from spann3r.datasets import *
+from spann3r.model import Spann3R
+from spann3r.loss import Regr3D_t_ScaleShiftInv
 from spann3r.tools.eval_recon import accuracy, completion
 from spann3r.tools.vis import render_frames, find_render_cam, vis_pred_and_imgs
 
@@ -27,6 +32,7 @@ def get_args_parser():
     parser.add_argument('--conf_thresh', type=float, default=1e-3, help='confidence threshold')
     parser.add_argument('--kf_every', type=int, default=10, help='map every kf_every frames')
     parser.add_argument('--vis', action='store_true', help='visualize')
+    parser.add_argument('--vis_cam', action='store_true', help='visualize camera pose')
 
     return parser
 
@@ -100,6 +106,20 @@ def main(args):
     images_all = []
     masks_all = []
     conf_all = []
+    poses_all = []
+
+
+    ##### estimate focal length
+    _, H, W, _ = preds[0]['pts3d'].shape
+    pp = torch.tensor((W/2, H/2))
+    focal = estimate_focal_knowing_depth(preds[0]['pts3d'].cpu(), pp, focal_mode='weiszfeld')
+    print(f'Estimated focal of first camera: {focal.item()} (224x224)')
+
+    intrinsic = np.eye(3)
+    intrinsic[0, 0] = focal
+    intrinsic[1, 1] = focal
+    intrinsic[:2, 2] = pp
+
 
     for j, view in enumerate(ordered_batch):
         
@@ -111,6 +131,23 @@ def main(args):
 
         pts_gt = view['pts3d'].cpu().numpy()[0]
 
+        ##### Solve PnP-RANSAC
+        u, v = np.meshgrid(np.arange(W), np.arange(H))
+        points_2d = np.stack((u, v), axis=-1)
+        dist_coeffs = np.zeros(4).astype(np.float32)
+        success, rotation_vector, translation_vector, inliers = cv2.solvePnPRansac(
+            pts.reshape(-1, 3).astype(np.float32), 
+            points_2d.reshape(-1, 2).astype(np.float32), 
+            intrinsic.astype(np.float32), 
+            dist_coeffs)
+    
+        rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+
+        # Extrinsic parameters (4x4 matrix)
+        extrinsic_matrix = np.hstack((rotation_matrix, translation_vector.reshape(-1, 1)))
+        extrinsic_matrix = np.vstack((extrinsic_matrix, [0, 0, 0, 1]))
+
+        poses_all.append(inv(extrinsic_matrix))
         images_all.append((image[None, ...] + 1.0)/2.0)
         pts_all.append(pts[None, ...])
         pts_gt_all.append(pts_gt[None, ...])
@@ -122,13 +159,16 @@ def main(args):
     pts_gt_all = np.concatenate(pts_gt_all, axis=0)
     masks_all = np.concatenate(masks_all, axis=0)
     conf_all = np.concatenate(conf_all, axis=0)
+    poses_all = np.stack(poses_all, axis=0)
 
     save_params = dict(
         images_all=images_all,
         pts_all=pts_all,
         pts_gt_all=pts_gt_all,
         masks_all=masks_all,
-        conf_all=conf_all
+        conf_all=conf_all,
+        poses_all=poses_all,
+        intrinsic=intrinsic,
         )
     
     np.save(os.path.join(save_demo_path, f"{demo_name}.npy"), save_params)
@@ -144,7 +184,7 @@ def main(args):
 
 
     if args.vis:
-        camera_parameters = find_render_cam(pcd)
+        camera_parameters = find_render_cam(pcd, poses_all if args.vis_cam else None)
 
         render_frames(pts_all, images_all, camera_parameters, save_demo_path, mask=conf_sig_all>args.conf_thresh)
         vis_pred_and_imgs(pts_all, save_demo_path, images_all=images_all, conf_all=conf_sig_all)

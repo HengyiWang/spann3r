@@ -71,9 +71,27 @@ def render_frames(pts_all, image_all, camera_parameters, output_dir, mask=None, 
 
     vis.destroy_window()
 
+def draw_camera(c2w, cam_width=0.32/2, cam_height=0.24/2, f=0.10, color=[0, 1, 0], show_axis=True):
+    points = [[0, 0, 0], [-cam_width, -cam_height, f], [cam_width, -cam_height, f],
+              [cam_width, cam_height, f], [-cam_width, cam_height, f]]
+    lines = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [2, 3], [3, 4], [4, 1]]
+    colors = [color for i in range(len(lines))]
 
+    line_set = o3d.geometry.LineSet()
+    line_set.points = o3d.utility.Vector3dVector(points)
+    line_set.lines = o3d.utility.Vector2iVector(lines)
+    line_set.colors = o3d.utility.Vector3dVector(colors)
+    line_set.transform(c2w)
 
-def find_render_cam(pcd):
+    if show_axis:
+        axis = o3d.geometry.TriangleMesh.create_coordinate_frame()
+        axis.scale(min(cam_width, cam_height), np.array([0., 0., 0.]))
+        axis.transform(c2w)
+        return [line_set, axis]
+    else:
+        return [line_set]
+
+def find_render_cam(pcd, poses_all=None, cam_width=0.016, cam_height=0.012, cam_f=0.02):
     last_camera_params = None
 
     def print_camera_pose(vis):
@@ -92,6 +110,10 @@ def find_render_cam(pcd):
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window(width=1920, height=1080)
     vis.add_geometry(pcd)
+    if poses_all is not None:
+        for pose in poses_all:
+            for geometry in draw_camera(pose, cam_width, cam_height, cam_f):
+                vis.add_geometry(geometry)
 
     opt = vis.get_render_option()
     opt.point_size = 1

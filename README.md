@@ -12,6 +12,16 @@
   </a>
 </p>
 
+## Update
+
+[2024-10-18] Add camera param estimation
+
+[2024-09-30] [@hugoycj](https://github.com/hugoycj) adds a gradio demo
+
+[2024-09-20] Instructions for datasets [data_preprocess.md](docs/data_preprocess.md)
+
+[2024-09-11] Code for Spann3R
+
 ## Installation
 
 1. Clone Spann3R
@@ -59,7 +69,7 @@
 2. Run demo:
 
    ```
-   python demo.py --demo_path ./examples/s00567 --kf_every 10 --vis
+   python demo.py --demo_path ./examples/s00567 --kf_every 10 --vis --vis_cam
    ```
 
    For visualization `--vis`, it will give you a window to adjust the rendering view. Once you find the view to render, please click `space key` and close the window. The code will then do the rendering of the incremental reconstruction.
