@@ -1,5 +1,6 @@
 import os
 import cv2
+import json
 import time
 import torch
 import argparse
@@ -13,6 +14,7 @@ from dust3r.losses import L21
 from dust3r.utils.geometry import inv
 from dust3r.inference import inference
 from dust3r.image_pairs import make_pairs
+from dust3r.utils.image import imread_cv2
 from dust3r.post_process import estimate_focal_knowing_depth
 
 from spann3r.datasets import *
@@ -33,8 +35,40 @@ def get_args_parser():
     parser.add_argument('--kf_every', type=int, default=10, help='map every kf_every frames')
     parser.add_argument('--vis', action='store_true', help='visualize')
     parser.add_argument('--vis_cam', action='store_true', help='visualize camera pose')
+    parser.add_argument('--save_ori', action='store_true', help='save original parameters for NeRF')
 
     return parser
+
+def get_transform_json(H, W, focal, poses_all, ply_file_path, ori_path=None):
+    transform_dict = {
+        'w': W,
+        'h': H,
+        'fl_x': focal.item(),
+        'fl_y': focal.item(),
+        'cx': W/2,
+        'cy': H/2,
+        'k1': 0,
+        'k2': 0,
+        'p1': 0,
+        'p2': 0,
+        'camera_model': 'OPENCV',
+    }
+    frames = []
+
+    for i, pose in enumerate(poses_all):
+        # CV2 GL format
+        pose[:3, 1] *= -1
+        pose[:3, 2] *= -1
+        frame = {
+            'file_path': f"imgs/img_{i:04d}.png" if ori_path is None else ori_path[i],
+            'transform_matrix': pose.tolist()
+        }
+        frames.append(frame)
+    
+    transform_dict['frames'] = frames
+    transform_dict['ply_file_path'] = ply_file_path
+
+    return transform_dict
 
 @torch.no_grad()
 def main(args):
@@ -188,6 +222,35 @@ def main(args):
 
         render_frames(pts_all, images_all, camera_parameters, save_demo_path, mask=conf_sig_all>args.conf_thresh)
         vis_pred_and_imgs(pts_all, save_demo_path, images_all=images_all, conf_all=conf_sig_all)
+    
+    # Save transform.json
+    if args.save_ori:
+        scale_factor = ordered_batch[0]['camera_intrinsics'][0, 0, 0]
+        assert scale_factor < 1.0, "Scale factor should be less than 1.0"
+        focal_ori = focal / scale_factor
+
+        image = imread_cv2(ordered_batch[0]['label'][0])
+
+        H_ori, W_ori = image.shape[:2]
+
+        paths_all = [osp.normpath(osp.join(osp.abspath(os.getcwd()), view['label'][0]))
+                      for view in ordered_batch]
+
+        transform_dict = get_transform_json(H_ori, W_ori, focal_ori, poses_all, 
+                                            f"{demo_name}_conf{args.conf_thresh}.ply",
+                                            ori_path=paths_all)
+
+
+        
+    
+    else:
+        transform_dict = get_transform_json(H, W, focal, poses_all, f"{demo_name}_conf{args.conf_thresh}.ply")
+    
+
+    # Save to json
+    with open(os.path.join(save_demo_path, 'transforms.json'), 'w') as f:
+        json.dump(transform_dict, f, indent=4)
+
 
 
 

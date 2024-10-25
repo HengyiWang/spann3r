@@ -37,7 +37,7 @@ class Demo(BaseManyViewDataset):
         img_idxs = self.sample_frame_idx(img_idxs, rng, full_video=self.full_video)
 
         # pseudo intrinsics
-        fx, fy = 525, 525
+        fx, fy = 1.0, 1.0
 
         views = []
         imgs_idxs = deque(img_idxs)

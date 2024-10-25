@@ -14,6 +14,8 @@
 
 ## Update
 
+[2024-10-25] Add support for [Nerfstudio](assets/spanner-gs.gif)
+
 [2024-10-18] Add camera param estimation
 
 [2024-09-30] [@hugoycj](https://github.com/hugoycj) adds a gradio demo
@@ -73,11 +75,26 @@
    ```
 
    For visualization `--vis`, it will give you a window to adjust the rendering view. Once you find the view to render, please click `space key` and close the window. The code will then do the rendering of the incremental reconstruction.
+   
+3. Nerfstudio:
+
+   ```
+   # Run demo use --save_ori to save scaled intrinsics for original images
+   python demo.py --demo_path ./examples/s00567 --kf_every 10 --vis --vis_cam --save_ori
+   
+   # Run splatfacto
+   ns-train splatfacto --data ./output/demo/s00567 --pipeline.model.camera-optimizer.mode SO3xR3
+   
+   # Render your results
+   ns-render interpolate --load-config [path-to-your-config]/config.yml
+   ```
+
+   Note that here you can use `--save_ori` to save the scaled intrinsics into `transform.json` to train NeRF/3D Gaussians with original images.'
 
 
-## Gradio interface 🤗
+## Gradio interface 
 
-We also provide a Gradio <a href='https://github.com/gradio-app/gradio'><img src='https://img.shields.io/github/stars/gradio-app/gradio'></a> interface for a better experience, just run by:
+We also provide a Gradio interface for a better experience, just run by:
 
 ```bash
 # For Linux and Windows users (and macOS with Intel??)
