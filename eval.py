@@ -48,7 +48,7 @@ def main(args):
     model = Spann3R(dus3r_name='./checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth', 
                 use_feat=False).to(args.device)
     
-    model.load_state_dict(torch.load(ckpt_path)['model'])
+    model.load_state_dict(torch.load(ckpt_path, map_location=args.device)['model'])
     model.eval()    
 
 
