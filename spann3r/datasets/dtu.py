@@ -90,6 +90,24 @@ class DTU(BaseManyViewDataset):
 
         return intrinsic, extrinsic
     
+    def sample_pairs(self, pairs_path, seq_id):
+        
+        cluster_lines = open(pairs_path).read().splitlines()
+        ref_idx = int(cluster_lines[2 * seq_id + 1])
+        
+        cluster_info =  cluster_lines[2 * seq_id + 2].split() 
+        list_idx = [] 
+        
+        list_idx.append('{:08d}.jpg'.format(ref_idx))
+        
+        for cidx in range(self.num_frames):
+            list_idx.append('{:08d}.jpg'.format(int(cluster_info[2 * cidx + 1])))
+        
+        list_idx.reverse()
+        
+        
+        return list_idx
+    
     def _get_views(self, idx, resolution, rng): 
         scene_id = self.scene_list[idx // self.num_seq]
         seq_id = idx % self.num_seq
