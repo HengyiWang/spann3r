@@ -12,7 +12,7 @@ class SpatialMemory():
     def __init__(self, norm_q, norm_k, norm_v, mem_dropout=None, 
                  long_mem_size=4000, work_mem_size=5, 
                  attn_thresh=5e-4, sim_thresh=0.95, 
-                 save_attn=False):
+                 save_attn=False, num_patches=None):
         self.norm_q = norm_q
         self.norm_k = norm_k
         self.norm_v = norm_v
@@ -23,6 +23,7 @@ class SpatialMemory():
         self.top_k = long_mem_size
         self.save_attn = save_attn
         self.sim_thresh = sim_thresh
+        self.num_patches = num_patches
         self.init_mem()
     
     def init_mem(self):
@@ -77,6 +78,9 @@ class SpatialMemory():
                 self.mem_imgs = torch.cat((self.mem_imgs, img_cur), dim=1)
 
     def add_mem(self, feat_k, feat_v, pts_cur=None, img_cur=None):  
+        if self.num_patches is None:
+            self.num_patches = feat_k.shape[1]
+            
         if self.mem_count is None:
             self.mem_count = torch.zeros_like(feat_k[:, :, :1])
             self.mem_attn = torch.zeros_like(feat_k[:, :, :1])
@@ -94,10 +98,11 @@ class SpatialMemory():
         # Do correlation with working memory
         if self.mem_k is None or thresh==1.0:
             return False
-        wmem_size = self.wm * 196
+        
+        wmem_size = self.wm * self.num_patches
 
         # wm: BS, T, 196, C
-        wm = self.mem_k[:, -wmem_size:].reshape(self.mem_k.shape[0], -1, 196, self.mem_k.shape[-1])
+        wm = self.mem_k[:, -wmem_size:].reshape(self.mem_k.shape[0], -1, self.num_patches, self.mem_k.shape[-1])
 
         feat_k_norm = F.normalize(feat_k, p=2, dim=-1)
         wm_norm = F.normalize(wm, p=2, dim=-1)
@@ -113,6 +118,9 @@ class SpatialMemory():
         return False
 
     def add_mem_check(self, feat_k, feat_v, pts_cur=None, img_cur=None):
+        if self.num_patches is None:
+            self.num_patches = feat_k.shape[1]
+
         if self.check_sim(feat_k, thresh=self.sim_thresh):
             return
         
@@ -122,17 +130,17 @@ class SpatialMemory():
         if self.wm > self.work_mem_size:
             self.wm -= 1
             if self.long_mem_size == 0:
-                self.mem_k = self.mem_k[:, 196:]
-                self.mem_v = self.mem_v[:, 196:]
-                self.mem_count = self.mem_count[:, 196:]
-                self.mem_attn = self.mem_attn[:, 196:]
+                self.mem_k = self.mem_k[:, self.num_patches:]
+                self.mem_v = self.mem_v[:, self.num_patches:]
+                self.mem_count = self.mem_count[:, self.num_patches:]
+                self.mem_attn = self.mem_attn[:, self.num_patches:]
                 print('Memory pruned:', self.mem_k.shape)
             else:
-                self.lm += 196 # TODO: Change this to the actual size of the memory bank
+                self.lm += self.num_patches
         
         if self.lm > self.long_mem_size:
             self.memory_prune()
-            self.lm = self.top_k - self.wm * 196
+            self.lm = self.top_k - self.wm * self.num_patches
     
     def memory_read(self, feat, res=True):
         '''
