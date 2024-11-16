@@ -14,7 +14,7 @@ Preprocessing code of scannetpp is from splatam
 
 class Scannetpp(BaseManyViewDataset):
     def __init__(self, num_seq=100, num_frames=5, 
-                 min_thresh=10, max_thresh=100, 
+                 min_thresh=5, max_thresh=30, 
                  test_id=None, full_video=False, 
                  kf_every=1, *args, ROOT, **kwargs):
         self.ROOT = ROOT

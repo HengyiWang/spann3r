@@ -14,7 +14,7 @@ class Co3d(BaseManyViewDataset):
     def __init__(self, mask_bg=True, use_comb=True,
                  scene_class=None, scene_id=None,
                  num_seq=100, num_frames=5, 
-                 min_thresh=10, max_thresh=100,
+                 min_thresh=5, max_thresh=20,
                  full_video=False, lb=0, ub=30,
                  kf_every=1, *args, ROOT, **kwargs):
         self.ROOT = ROOT
