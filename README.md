@@ -14,6 +14,8 @@
 
 ## Update
 
+[2025-02-25] Spann3R v1.01 checkpoint [released](https://drive.google.com/drive/folders/1bqtcVf8lK4VC8LgG-SIGRBECcrFqM7Wy?usp=sharing)
+
 [2024-10-25] Add support for [Nerfstudio](assets/spanner-gs.gif)
 
 [2024-10-18] Add camera param estimation
@@ -23,6 +25,27 @@
 [2024-09-20] Instructions for datasets [data_preprocess.md](docs/data_preprocess.md)
 
 [2024-09-11] Code for Spann3R
+
+
+
+## Release Notes
+
+**Spann3R v1.01:** We further train Spann3R with 10-frame sequence on a mixture of 15 datasets, including ScanNet, ScanNetpp, WildRGBD, Co3D, Aria, ArkitScene, BlendMVS, Waymo, Tartanair, OminiObject3d, Megadepth, Vkitti2, Unreal, Spring, Pointodyssey. (NOTE: We have removed Habitat from training, as we found that using our rendered Habitat sequences led to [failure on synthetic data](https://github.com/HengyiWang/spann3r/issues/1)) We report the updated chamfer distance (mean) here:
+
+|               | 7 Scenes   | NRGBD      | Replica    | DTU       |
+| ------------- | ---------- | ---------- | ---------- | --------- |
+| Spann3R       | 0.0291     | 0.0491     | N/A        | 3.764     |
+| Spann3R v1.01 | **0.0255** | **0.0437** | **0.0480** | **2.955** |
+
+Also, since we include some dynamic scenes, Spann3R v1.01 now supports static/dynamic scene reconstruction. Here are some qualitative examples:
+
+<p align="center">
+  <a href="">
+    <img src="./assets/spann3r101.gif" alt="Logo" width="90%">
+  </a>
+</p>
+
+We acknowledge the support of the [UKRI/EPSRC AI Hub in Generative Models](https://www.genai.ac.uk/) [grant number EP/Y028805/1] for computing resources.
 
 ## Installation
 
@@ -71,10 +94,10 @@
 2. Run demo:
 
    ```
-   python demo.py --demo_path ./examples/s00567 --kf_every 10 --vis --vis_cam
+   python demo.py --demo_path ./examples/s00567 --kf_every 10 --vis --vis_cam # --dynamic
    ```
 
-   For visualization `--vis`, it will give you a window to adjust the rendering view. Once you find the view to render, please click `space key` and close the window. The code will then do the rendering of the incremental reconstruction.
+   For visualization `--vis`, it will give you a window to adjust the rendering view. Once you find the view to render, please click `space key` and close the window. The code will then do the rendering of the incremental reconstruction. `--dynamic` will give you a dynamic visualization that is suitable for dynamic scene reconstruction.
    
 3. Nerfstudio:
 
