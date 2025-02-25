@@ -14,7 +14,7 @@ import numpy as np
 import imageio
 import os.path as osp
 
-def render_frames(pts_all, image_all, camera_parameters, output_dir, mask=None, save_video=True, save_camera=True):
+def render_frames(pts_all, image_all, camera_parameters, output_dir, mask=None, save_video=True, save_camera=True, dynamic=False):
     t, h, w, _ = pts_all.shape
 
     vis = o3d.visualization.Visualizer()
@@ -41,8 +41,12 @@ def render_frames(pts_all, image_all, camera_parameters, output_dir, mask=None, 
             new_pts = new_pts[mask[i].reshape(-1)]
             new_colors = new_colors[mask[i].reshape(-1)]
 
-        pcd.points.extend(o3d.utility.Vector3dVector(new_pts))
-        pcd.colors.extend(o3d.utility.Vector3dVector(new_colors))
+        if dynamic:
+            pcd.points = o3d.utility.Vector3dVector(new_pts)
+            pcd.colors = o3d.utility.Vector3dVector(new_colors)
+        else:
+            pcd.points.extend(o3d.utility.Vector3dVector(new_pts))
+            pcd.colors.extend(o3d.utility.Vector3dVector(new_colors))
 
         vis.clear_geometries()
         vis.add_geometry(pcd)

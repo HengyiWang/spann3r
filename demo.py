@@ -36,6 +36,7 @@ def get_args_parser():
     parser.add_argument('--vis', action='store_true', help='visualize')
     parser.add_argument('--vis_cam', action='store_true', help='visualize camera pose')
     parser.add_argument('--save_ori', action='store_true', help='save original parameters for NeRF')
+    parser.add_argument('--dynamic', action='store_true', help='dynamic mode')
 
     return parser
 
@@ -220,7 +221,7 @@ def main(args):
     if args.vis:
         camera_parameters = find_render_cam(pcd, poses_all if args.vis_cam else None)
 
-        render_frames(pts_all, images_all, camera_parameters, save_demo_path, mask=conf_sig_all>args.conf_thresh)
+        render_frames(pts_all, images_all, camera_parameters, save_demo_path, mask=conf_sig_all>args.conf_thresh, dynamic=args.dynamic)
         vis_pred_and_imgs(pts_all, save_demo_path, images_all=images_all, conf_all=conf_sig_all)
     
     # Save transform.json
